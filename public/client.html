@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Durak Online</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #1f1c2c, #928dab);
+      color: #fff;
+      text-align: center;
+      padding: 20px;
+    }
+    #login {
+      margin-top: 100px;
+    }
+    #game {
+      display: none;
+    }
+    .card {
+      display: inline-block;
+      padding: 10px;
+      margin: 5px;
+      border-radius: 8px;
+      background: #fff;
+      color: #000;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .card:hover {
+      transform: scale(1.1);
+    }
+  </style>
+</head>
+<body>
+  <div id="login">
+    <h1>Durak Online</h1>
+    <input id="roomId" placeholder="Room ID" />
+    <input id="playerName" placeholder="Your name" />
+    <button onclick="joinGame()">Join</button>
+  </div>
+
+  <div id="game">
+    <h2 id="roomInfo"></h2>
+    <h3>Players:</h3>
+    <ul id="players"></ul>
+    <h3>Your Hand:</h3>
+    <div id="hand"></div>
+    <h3>Trump: <span id="trump"></span></h3>
+    <h3>Table:</h3>
+    <div id="table"></div>
+  </div>
+
+  <script>
+    const socket = io();
+    let myHand = [];
+
+    function joinGame() {
+      const roomId = document.getElementById("roomId").value;
+      const playerName = document.getElementById("playerName").value;
+      socket.emit("joinRoom", { roomId, playerName });
+      document.getElementById("login").style.display = "none";
+      document.getElementById("game").style.display = "block";
+      document.getElementById("roomInfo").innerText = "Room: " + roomId;
+    }
+
+    socket.on("updatePlayers", (players) => {
+      const list = document.getElementById("players");
+      list.innerHTML = "";
+      players.forEach((p) => {
+        const li = document.createElement("li");
+        li.innerText = p.name;
+        list.appendChild(li);
+      });
+    });
+
+    socket.on("dealCards", (hand) => {
+      myHand = hand;
+      renderHand();
+    });
+
+    socket.on("setTrump", (trump) => {
+      document.getElementById("trump").innerText = trump;
+    });
+
+    socket.on("moveMade", ({ player, move }) => {
+      const table = document.getElementById("table");
+      const div = document.createElement("div");
+      div.className = "card";
+      div.innerText = move;
+      table.appendChild(div);
+    });
+
+    function renderHand() {
+      const handDiv = document.getElementById("hand");
+      handDiv.innerHTML = "";
+      myHand.forEach((card) => {
+        const div = document.createElement("div");
+        div.className = "card";
+        div.innerText = card;
+        div.onclick = () => playCard(card);
+        handDiv.appendChild(div);
+      });
+    }
+
+    function playCard(card) {
+      socket.emit("makeMove", { roomId: document.getElementById("roomId").value, move: card });
+      myHand = myHand.filter((c) => c !== card);
+      renderHand();
+    }
+  </script>
+</body>
+</html>
